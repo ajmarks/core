@@ -1,35 +1,41 @@
 """The ge_kitchen integration."""
+
 import asyncio
+import async_timeout
 
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_CLIENT_ID, CONF_CLIENT_SECRET
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import (
     aiohttp_client,
     config_entry_oauth2_flow,
     config_validation as cv,
 )
-
-from . import api, config_flow
-from .const import DOMAIN, OAUTH2_AUTHORIZE, OAUTH2_TOKEN
-
-CONFIG_SCHEMA = vol.Schema(
-    {
-        DOMAIN: vol.Schema(
-            {
-                vol.Required(CONF_CLIENT_ID): cv.string,
-                vol.Required(CONF_CLIENT_SECRET): cv.string,
-            }
-        )
-    },
-    extra=vol.ALLOW_EXTRA,
+from gekitchen.const import OAUTH2_CLIENT_ID, OAUTH2_CLIENT_SECRET
+from . import api_auth, config_flow
+from .const import (
+    AUTH_HANDLER,
+    COORDINATOR,
+    DOMAIN,
+    OAUTH2_AUTHORIZE,
+    OAUTH2_TOKEN,
 )
+from .update_coordinator import GeKitchenUpdateCoordinator
 
-# TODO List the platforms that you want to support.
-# For your initial PR, limit it to 1 platform.
-PLATFORMS = ["light"]
+# CONFIG_SCHEMA = vol.Schema(
+#     {
+#         DOMAIN: vol.Schema(
+#             {
+#                 vol.Required(CONF_CLIENT_ID): cv.string,
+#                 vol.Required(CONF_CLIENT_SECRET): cv.string,
+#             }
+#         )
+#     },
+#     extra=vol.ALLOW_EXTRA,
+# )
+
+PLATFORMS = ["sensor"]
 
 
 async def async_setup(hass: HomeAssistant, config: dict):
@@ -44,8 +50,8 @@ async def async_setup(hass: HomeAssistant, config: dict):
         config_entry_oauth2_flow.LocalOAuth2Implementation(
             hass,
             DOMAIN,
-            config[DOMAIN][CONF_CLIENT_ID],
-            config[DOMAIN][CONF_CLIENT_SECRET],
+            OAUTH2_CLIENT_ID,
+            OAUTH2_CLIENT_SECRET,
             OAUTH2_AUTHORIZE,
             OAUTH2_TOKEN,
         ),
@@ -62,13 +68,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     session = config_entry_oauth2_flow.OAuth2Session(hass, entry, implementation)
 
-    # If using a requests-based API lib
-    hass.data[DOMAIN][entry.entry_id] = api.ConfigEntryAuth(hass, entry, session)
-
-    # If using an aiohttp-based API lib
-    hass.data[DOMAIN][entry.entry_id] = api.AsyncConfigEntryAuth(
+    auth_handler = api_auth.AsyncConfigEntryAuth(
         aiohttp_client.async_get_clientsession(hass), session
     )
+    coordinator = GeKitchenUpdateCoordinator(hass, entry, auth_handler)
+    coordinator.get_new_client()
+    coordinator.start_client()
+    with async_timeout.timeout(20):
+        await coordinator.initialization_future
+
+    hass.data[DOMAIN][entry.entry_id] = {
+        AUTH_HANDLER: auth_handler,
+        COORDINATOR: coordinator,
+    }
 
     for component in PLATFORMS:
         hass.async_create_task(
