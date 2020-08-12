@@ -15,8 +15,7 @@ class OAuth2FlowHandler(
     """Config flow to handle ge_kitchen OAuth2 authentication."""
 
     DOMAIN = DOMAIN
-    # TODO Pick one from config_entries.CONN_CLASS_*
-    CONNECTION_CLASS = config_entries.CONN_CLASS_UNKNOWN
+    CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_PUSH
 
     @property
     def logger(self) -> logging.Logger:
