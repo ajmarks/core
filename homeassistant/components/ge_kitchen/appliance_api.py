@@ -2,19 +2,24 @@
 
 import asyncio
 from typing import Any, Dict, List, Optional, Type
-from gekitchen import (
+
+from gekitchen import ErdCodeType, GeAppliance, translate_erd_code
+from gekitchen.erd_types import OvenCookSetting, OvenConfiguration
+from gekitchen.erd_constants import (
     ErdCode,
-    ErdCodeType,
     ErdApplianceType,
     ErdMeasurementUnits,
-    GeAppliance,
-    OvenConfiguration,
-    translate_erd_code
+    ErdOvenState,
 )
 from homeassistant.const import TEMP_CELSIUS, TEMP_FAHRENHEIT
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import Entity
 
 from .const import DOMAIN
+from .erd_string_utils import (
+    oven_display_state_to_str,
+    oven_cook_setting_to_str,
+)
 
 TEMPERATURE_ERD_CODES = {
     ErdCode.HOT_WATER_SET_TEMP,
@@ -38,18 +43,24 @@ def get_appliance_api_type(appliance_type: ErdApplianceType) -> Type:
     return ApplianceApi
 
 
-def stringify_erd_value(erd_code: ErdCodeType, value: Any) -> Optional[str]:
+def stringify_erd_value(erd_code: ErdCodeType, value: Any, units: str) -> Optional[str]:
     """
     Convert an erd property value to a nice string
 
     :param erd_code:
     :param value: The current value in its native format
+    :param units: Units to apply, if applicable
     :return: The value converted to a string
     """
     if value is None:
         return None
-
     erd_code = translate_erd_code(erd_code)
+
+    if isinstance(value, ErdOvenState):
+        return oven_display_state_to_str(value)
+    if isinstance(OvenCookSetting, value):
+        return oven_cook_setting_to_str(value, units)
+
     if erd_code == ErdCode.CLOCK_TIME:
         return value.strftime('%H:%M:%S')
     return str(value)
@@ -75,13 +86,18 @@ class ApplianceApi:
     """
     APPLIANCE_TYPE = None  # type: Optional[ErdApplianceType]
 
-    def __init__(self, appliance: GeAppliance):
+    def __init__(self, hass: HomeAssistant, appliance: GeAppliance):
         if not appliance.initialized:
             raise RuntimeError('Appliance not ready')
         self._appliance = appliance
         self._loop = appliance.client.loop
+        self._hass = hass
         self.initial_update = False
         self._entities = {}  # type: Optional[Dict[str, Entity]]
+
+    @property
+    def hass(self) -> HomeAssistant:
+        return self._hass
 
     @property
     def loop(self) -> Optional[asyncio.AbstractEventLoop]:
@@ -181,6 +197,11 @@ class GeEntity(Entity):
         appliance = api.appliance
         self._api = api
         self._appliance = appliance
+        self.hass = None  # type: Optional[HomeAssistant]
+
+    @property
+    def unique_id(self) -> str:
+        raise NotImplementedError
 
     @property
     def api(self) -> ApplianceApi:
@@ -201,15 +222,12 @@ class GeEntity(Entity):
 
     @property
     def available(self) -> bool:
-        return self.appliance.available
+        return True
+        # return self.appliance.available
 
     @property
     def appliance(self) -> GeAppliance:
         return self._appliance
-
-    @property
-    def unique_id(self) -> Optional[str]:
-        raise NotImplementedError
 
     @property
     def name(self) -> Optional[str]:
@@ -248,7 +266,7 @@ class GeSensor(GeErdEntity):
     @property
     def state(self) -> Optional[str]:
         value = self.appliance.get_erd_value(self.erd_code)
-        return stringify_erd_value(self.erd_code, value)
+        return stringify_erd_value(self.erd_code, value, self.units)
 
     @property
     def measurement_system(self) -> Optional[ErdMeasurementUnits]:

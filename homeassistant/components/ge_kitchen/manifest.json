@@ -3,7 +3,7 @@
   "name": "GE Kitchen",
   "config_flow": true,
   "documentation": "https://www.home-assistant.io/integrations/ge_kitchen",
-  "requirements": ["gekitchen==0.1.3"],
+  "requirements": ["gekitchen==0.1.5"],
   "dependencies": [],
   "codeowners": ["@ajmarks"]
 }

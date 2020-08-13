@@ -5,7 +5,7 @@ DOMAIN = "ge_kitchen"
 
 # TODO Update with your own urls
 # OAUTH2_AUTHORIZE = f"{LOGIN_URL}/oauth2/auth"
-OAUTH2_AUTH_URL = f"{LOGIN_URL}/oauth2/g_authenticate"
+OAUTH2_AUTH_URL = f"{LOGIN_URL}/oauth2/auth"
 OAUTH2_TOKEN_URL = f"{LOGIN_URL}/oauth2/token"
 
 AUTH_HANDLER = "auth_handler"
