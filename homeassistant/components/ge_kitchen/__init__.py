@@ -5,14 +5,14 @@ import async_timeout
 import logging
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, SOURCE_IMPORT
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import (
     aiohttp_client,
     config_entry_oauth2_flow,
 )
-from gekitchen.const import OAUTH2_CLIENT_ID, OAUTH2_CLIENT_SECRET
-from . import api_auth, config_flow
+from gekitchen.async_login_flow import async_do_full_login_flow
+from . import auth_api, config_flow
 from .const import (
     AUTH_HANDLER,
     COORDINATOR,
@@ -20,67 +20,45 @@ from .const import (
     OAUTH2_AUTH_URL,
     OAUTH2_TOKEN_URL,
 )
+
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from .update_coordinator import GeKitchenUpdateCoordinator
 
-CONFIG_SCHEMA = vol.Schema(
-    {DOMAIN: vol.Schema({vol.Optional("Sorcery", default="Magic!"): str})},
-    extra=vol.ALLOW_EXTRA
-)
+CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 PLATFORMS = ["sensor"]
 
 _LOGGER = logging.getLogger(__name__)
-_LOGGER.critical('Testing logging!')
 
 
 async def async_setup(hass: HomeAssistant, config: dict):
     """Set up the ge_kitchen component."""
-    _LOGGER.critical('In async_setup')
-    hass.data[DOMAIN] = {}
-
+    hass.data.setdefault(DOMAIN, {})
     if DOMAIN not in config:
-        _LOGGER.critical('Skipping async_setup')
         return True
-
-    _LOGGER.warning('Registering implementation')
-    config_flow.OAuth2FlowHandler.async_register_implementation(
-        hass,
-        config_entry_oauth2_flow.LocalOAuth2Implementation(
-            hass,
-            DOMAIN,
-            OAUTH2_CLIENT_ID,
-            OAUTH2_CLIENT_SECRET,
-            OAUTH2_AUTH_URL,
-            OAUTH2_TOKEN_URL,
-        ),
-    )
-    _LOGGER.warning('Registering implementation...Done')
-
+    for index, conf in enumerate(config[DOMAIN]):
+        _LOGGER.debug(
+            "Importing GE Kitchen Account #%d (Username: %s)", index, conf[CONF_USERNAME]
+        )
+        hass.async_create_task(
+            hass.config_entries.flow.async_init(
+                DOMAIN, context={"source": SOURCE_IMPORT}, data=conf,
+            )
+        )
     return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up ge_kitchen from a config entry."""
-    _LOGGER.critical('In async_setup_entry')
-    implementation = await config_entry_oauth2_flow.async_get_config_entry_implementation(
-        hass, entry
+    session = hass.helpers.aiohttp_client.async_get_clientsession()
+    xmpp_credentials = await async_do_full_login_flow(
+        session, entry.data[CONF_USERNAME], entry.data[CONF_PASSWORD]
     )
-    _LOGGER.critical('Got implementation')
-    session = config_entry_oauth2_flow.OAuth2Session(hass, entry, implementation)
-    _LOGGER.critical('Got session')
+    coordinator = GeKitchenUpdateCoordinator(hass, entry, xmpp_credentials)
+    hass.data[DOMAIN][entry.entry_id] = coordinator
 
-    auth_handler = api_auth.AsyncConfigEntryAuth(
-        aiohttp_client.async_get_clientsession(hass), session
-    )
-    coordinator = GeKitchenUpdateCoordinator(hass, entry, auth_handler)
-    await coordinator.get_new_client()
     coordinator.start_client()
-    with async_timeout.timeout(20):
+    with async_timeout.timeout(120):
         await coordinator.initialization_future
-
-    hass.data[DOMAIN][entry.entry_id] = {
-        AUTH_HANDLER: auth_handler,
-        COORDINATOR: coordinator,
-    }
 
     for component in PLATFORMS:
         hass.async_create_task(
