@@ -1,5 +1,5 @@
 {
-  "domain": "ge_kitchen2",
+  "domain": "ge_kitchen",
   "name": "GE Kitchen",
   "config_flow": true,
   "documentation": "https://www.home-assistant.io/integrations/ge_kitchen",

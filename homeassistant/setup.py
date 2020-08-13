@@ -112,6 +112,7 @@ async def _async_setup_component(
 
     This method is a coroutine.
     """
+    _LOGGER.critical('In _async_setup_component')
 
     def log_error(msg: str, link: Optional[str] = None) -> None:
         """Log helper."""
@@ -123,11 +124,12 @@ async def _async_setup_component(
     except loader.IntegrationNotFound:
         log_error("Integration not found.")
         return False
+    _LOGGER.critical('Found integration')
 
     # Validate all dependencies exist and there are no circular dependencies
     if not await integration.resolve_dependencies():
         return False
-
+    _LOGGER.critical('Validated deps')
     # Process requirements as soon as possible, so we can import the component
     # without requiring imports to be in functions.
     try:
@@ -135,6 +137,7 @@ async def _async_setup_component(
     except HomeAssistantError as err:
         log_error(str(err), integration.documentation)
         return False
+    _LOGGER.critical('Got requirements')
 
     # Some integrations fail on import because they call functions incorrectly.
     # So we do it before validating config to catch these errors.
@@ -146,6 +149,7 @@ async def _async_setup_component(
     except Exception:  # pylint: disable=broad-except
         _LOGGER.exception("Setup failed for %s: unknown error", domain)
         return False
+    _LOGGER.critical('Got component')
 
     processed_config = await conf_util.async_process_component_config(
         hass, config, integration
@@ -186,6 +190,7 @@ async def _async_setup_component(
             log_error("No setup function defined.")
             hass.data[DATA_SETUP_STARTED].pop(domain)
             return False
+        _LOGGER.critical('task created')
 
         async with hass.timeout.async_timeout(SLOW_SETUP_MAX_WAIT, domain):
             result = await task
