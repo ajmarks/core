@@ -1,7 +1,7 @@
 """Constants for the ge_kitchen integration."""
 from gekitchen.const import LOGIN_URL
 
-DOMAIN = "ge_kitchen2"
+DOMAIN = "ge_kitchen"
 
 # TODO Update with your own urls
 # OAUTH2_AUTHORIZE = f"{LOGIN_URL}/oauth2/auth"
