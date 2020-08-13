@@ -1,9 +1,9 @@
 """Test the ge_kitchen config flow."""
 from homeassistant import config_entries, setup
-from homeassistant.components.ge_kitchen.const import (
+from homeassistant.components.ge_kitchen2.const import (
     DOMAIN,
-    OAUTH2_AUTHORIZE,
-    OAUTH2_TOKEN,
+    OAUTH2_AUTH_URL,
+    OAUTH2_TOKEN_URL,
 )
 from homeassistant.helpers import config_entry_oauth2_flow
 
@@ -30,7 +30,7 @@ async def test_full_flow(hass, aiohttp_client, aioclient_mock):
     state = config_entry_oauth2_flow._encode_jwt(hass, {"flow_id": result["flow_id"]})
 
     assert result["url"] == (
-        f"{OAUTH2_AUTHORIZE}?response_type=code&client_id={CLIENT_ID}"
+        f"{OAUTH2_AUTH_URL}?response_type=code&client_id={CLIENT_ID}"
         "&redirect_uri=https://example.com/auth/external/callback"
         f"&state={state}"
     )

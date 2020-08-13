@@ -74,7 +74,7 @@ class GeKitchenUpdateCoordinator(DataUpdateCoordinator):
             if jid not in self._appliance_apis:
                 self._appliance_apis[jid] = self._get_appliance_api(appliance)
 
-    def get_new_client(self):
+    async def get_new_client(self):
         if self.client is not None:
             self.client.disconnect()
         if not self._xmpp_credentials:

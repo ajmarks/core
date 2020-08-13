@@ -1,11 +1,12 @@
 """Constants for the ge_kitchen integration."""
 from gekitchen.const import LOGIN_URL
 
-DOMAIN = "ge_kitchen"
+DOMAIN = "ge_kitchen2"
 
 # TODO Update with your own urls
-OAUTH2_AUTHORIZE = f"{LOGIN_URL}/oauth2/auth"
-OAUTH2_TOKEN = f"{LOGIN_URL}/oauth2/token"
+# OAUTH2_AUTHORIZE = f"{LOGIN_URL}/oauth2/auth"
+OAUTH2_AUTH_URL = f"{LOGIN_URL}/oauth2/g_authenticate"
+OAUTH2_TOKEN_URL = f"{LOGIN_URL}/oauth2/token"
 
 AUTH_HANDLER = "auth_handler"
 EVENT_ALL_APPLIANCES_READY = 'all_appliances_ready'
