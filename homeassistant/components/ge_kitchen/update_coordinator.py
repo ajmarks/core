@@ -35,6 +35,7 @@ class GeKitchenUpdateCoordinator(DataUpdateCoordinator):
 
         # Some record keeping to let us know when we can start generating entities
         self._got_roster = True
+        self._init_done = False
         self.initialization_future = asyncio.Future()
 
         super().__init__(hass, _LOGGER, name=DOMAIN)
@@ -123,24 +124,27 @@ class GeKitchenUpdateCoordinator(DataUpdateCoordinator):
         """When there's a roster update, mark it and maybe trigger all ready."""
         _LOGGER.debug('Got roster update')
         self._got_roster = True
-        self.maybe_trigger_all_ready()
+        await self.async_maybe_trigger_all_ready()
 
     async def on_device_initial_update(self, appliance: GeAppliance):
         """When an appliance first becomes ready, let the system know and schedule periodic updates."""
         _LOGGER.debug(f'Got initial update for {appliance.jid}')
         _LOGGER.debug(f'Known appliances: {", ".join(self.client.appliances.keys())}')
         self.maybe_add_appliance_api(appliance)
-        self.maybe_trigger_all_ready()
+        await self.async_maybe_trigger_all_ready()
         while self.client.is_connected() and appliance.available:
             await asyncio.sleep(UPDATE_INTERVAL)
             appliance.request_update()
 
-    def maybe_trigger_all_ready(self):
+    async def async_maybe_trigger_all_ready(self):
         """See if we're all ready to go, and if so, let the games begin."""
-        if self.initialization_future.done():
+        if self._init_done or self.initialization_future.done():
             # Been here, done this
             return
         if self._got_roster and self.all_appliances_updated:
-            _LOGGER.debug('Ready to go.  Setting init future result.')
+            _LOGGER.debug('Ready to go.  Waiting 2 seconds and setting init future result.')
+            # The the flag and wait to prevent two different fun race conditions
+            self._init_done = True
+            await asyncio.sleep(2)
             self.initialization_future.set_result(True)
             self.client.event(EVENT_ALL_APPLIANCES_READY, None)

@@ -1,6 +1,5 @@
 """Utilities to make nice strings from ERD values."""
 
-from typing import Any
 from gekitchen.erd_types import OvenCookSetting
 from gekitchen.erd_constants import ErdOvenState
 from .erd_constants.oven_constants import (
@@ -38,9 +37,3 @@ def oven_cook_setting_to_str(cook_setting: OvenCookSetting, units: str) -> str:
     modifier_str = f" ({', '.join(modifiers)})" if modifiers else ""
     display_state = oven_display_state_to_str(cook_state)
     return f"{display_state}{temp_str}{modifier_str}"
-
-
-def erd_value_to_string(erd_code, erd_value: Any, units: str = '') -> str:
-    """Apply pretty formatting to ERD values."""
-
-

@@ -1,6 +1,7 @@
 """Oven state representation."""
 
 import asyncio
+import logging
 from typing import Any, Dict, List, Optional, Type
 
 from gekitchen import ErdCodeType, GeAppliance, translate_erd_code
@@ -21,18 +22,34 @@ from .erd_string_utils import (
     oven_cook_setting_to_str,
 )
 
-TEMPERATURE_ERD_CODES = {
+RAW_TEMPERATURE_ERD_CODES = {
     ErdCode.HOT_WATER_SET_TEMP,
+    ErdCode.LOWER_OVEN_RAW_TEMPERATURE,
+    ErdCode.LOWER_OVEN_USER_TEMP_OFFSET,
+    ErdCode.UPPER_OVEN_RAW_TEMPERATURE,
+    ErdCode.UPPER_OVEN_USER_TEMP_OFFSET,
+}
+NONZERO_TEMPERATURE_ERD_CODES = {
     ErdCode.LOWER_OVEN_DISPLAY_TEMPERATURE,
     ErdCode.LOWER_OVEN_PROBE_DISPLAY_TEMP,
-    ErdCode.LOWER_OVEN_USER_TEMP_OFFSET,
-    ErdCode.LOWER_OVEN_RAW_TEMPERATURE,
-    ErdCode.OVEN_MODE_MIN_MAX_TEMP,
     ErdCode.UPPER_OVEN_DISPLAY_TEMPERATURE,
     ErdCode.UPPER_OVEN_PROBE_DISPLAY_TEMP,
-    ErdCode.UPPER_OVEN_USER_TEMP_OFFSET,
-    ErdCode.UPPER_OVEN_RAW_TEMPERATURE,
 }
+TEMPERATURE_ERD_CODES = RAW_TEMPERATURE_ERD_CODES.union(NONZERO_TEMPERATURE_ERD_CODES)
+TIMER_ERD_CODES = {
+    ErdCode.LOWER_OVEN_ELAPSED_COOK_TIME,
+    ErdCode.LOWER_OVEN_KITCHEN_TIMER,
+    ErdCode.LOWER_OVEN_DELAY_TIME_REMAINING,
+    ErdCode.LOWER_OVEN_COOK_TIME_REMAINING,
+    ErdCode.ELAPSED_ON_TIME,
+    ErdCode.TIME_REMAINING,
+    ErdCode.UPPER_OVEN_ELAPSED_COOK_TIME,
+    ErdCode.UPPER_OVEN_KITCHEN_TIMER,
+    ErdCode.UPPER_OVEN_DELAY_TIME_REMAINING,
+    ErdCode.UPPER_OVEN_COOK_TIME_REMAINING,
+}
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def get_appliance_api_type(appliance_type: ErdApplianceType) -> Type:
@@ -58,12 +75,17 @@ def stringify_erd_value(erd_code: ErdCodeType, value: Any, units: str) -> Option
 
     if isinstance(value, ErdOvenState):
         return oven_display_state_to_str(value)
-    if isinstance(OvenCookSetting, value):
+    if isinstance(value, OvenCookSetting):
         return oven_cook_setting_to_str(value, units)
 
     if erd_code == ErdCode.CLOCK_TIME:
         return value.strftime('%H:%M:%S')
-    return str(value)
+    if erd_code in RAW_TEMPERATURE_ERD_CODES:
+        return f"{value}{units}"
+    if erd_code in NONZERO_TEMPERATURE_ERD_CODES:
+        return f"{value}{units}" if value else None
+    if erd_code in TIMER_ERD_CODES:
+        return str(value) if value else None
 
 
 def get_erd_units(erd_code: ErdCodeType, measurement_units: ErdMeasurementUnits):
@@ -158,6 +180,7 @@ class OvenApi(ApplianceApi):
     def get_all_entities(self) -> List[Entity]:
         base_entities = super().get_all_entities()
         oven_config = self.appliance.get_erd_value(ErdCode.OVEN_CONFIGURATION)  # type: OvenConfiguration
+        _LOGGER.debug(f'Oven Config: {oven_config}')
         oven_entities = [
             GeSensor(self, ErdCode.UPPER_OVEN_COOK_MODE),
             GeSensor(self, ErdCode.UPPER_OVEN_COOK_TIME_REMAINING),
@@ -175,18 +198,18 @@ class OvenApi(ApplianceApi):
 
         if oven_config.has_lower_oven:
             oven_entities.extend([
-                GeSensor(self, ErdCode.UPPER_OVEN_COOK_MODE),
-                GeSensor(self, ErdCode.UPPER_OVEN_COOK_TIME_REMAINING),
-                GeSensor(self, ErdCode.UPPER_OVEN_CURRENT_STATE),
-                GeSensor(self, ErdCode.UPPER_OVEN_DELAY_TIME_REMAINING),
-                GeSensor(self, ErdCode.UPPER_OVEN_DISPLAY_TEMPERATURE),
-                GeSensor(self, ErdCode.UPPER_OVEN_ELAPSED_COOK_TIME),
-                GeSensor(self, ErdCode.UPPER_OVEN_KITCHEN_TIMER),
-                GeSensor(self, ErdCode.UPPER_OVEN_PROBE_DISPLAY_TEMP),
-                GeSensor(self, ErdCode.UPPER_OVEN_USER_TEMP_OFFSET),
-                GeSensor(self, ErdCode.UPPER_OVEN_RAW_TEMPERATURE),
-                GeBinarySensor(self, ErdCode.UPPER_OVEN_PROBE_PRESENT),
-                GeBinarySensor(self, ErdCode.UPPER_OVEN_REMOTE_ENABLED),
+                GeSensor(self, ErdCode.LOWER_OVEN_COOK_MODE),
+                GeSensor(self, ErdCode.LOWER_OVEN_COOK_TIME_REMAINING),
+                GeSensor(self, ErdCode.LOWER_OVEN_CURRENT_STATE),
+                GeSensor(self, ErdCode.LOWER_OVEN_DELAY_TIME_REMAINING),
+                GeSensor(self, ErdCode.LOWER_OVEN_DISPLAY_TEMPERATURE),
+                GeSensor(self, ErdCode.LOWER_OVEN_ELAPSED_COOK_TIME),
+                GeSensor(self, ErdCode.LOWER_OVEN_KITCHEN_TIMER),
+                GeSensor(self, ErdCode.LOWER_OVEN_PROBE_DISPLAY_TEMP),
+                GeSensor(self, ErdCode.LOWER_OVEN_USER_TEMP_OFFSET),
+                GeSensor(self, ErdCode.LOWER_OVEN_RAW_TEMPERATURE),
+                GeBinarySensor(self, ErdCode.LOWER_OVEN_PROBE_PRESENT),
+                GeBinarySensor(self, ErdCode.LOWER_OVEN_REMOTE_ENABLED),
             ])
         return base_entities + oven_entities
 
@@ -194,9 +217,7 @@ class OvenApi(ApplianceApi):
 class GeEntity(Entity):
     """Base class for all GE Entities"""
     def __init__(self, api: ApplianceApi):
-        appliance = api.appliance
         self._api = api
-        self._appliance = appliance
         self.hass = None  # type: Optional[HomeAssistant]
 
     @property
@@ -222,12 +243,11 @@ class GeEntity(Entity):
 
     @property
     def available(self) -> bool:
-        return True
-        # return self.appliance.available
+        return self.appliance.available
 
     @property
     def appliance(self) -> GeAppliance:
-        return self._appliance
+        return self.api.appliance
 
     @property
     def name(self) -> Optional[str]:
@@ -270,7 +290,7 @@ class GeSensor(GeErdEntity):
 
     @property
     def measurement_system(self) -> Optional[ErdMeasurementUnits]:
-        return self._appliance.get_erd_value(ErdCode.TEMPERATURE_UNIT)
+        return self.appliance.get_erd_value(ErdCode.TEMPERATURE_UNIT)
 
     @property
     def units(self) -> Optional[str]:
