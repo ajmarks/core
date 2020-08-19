@@ -34,7 +34,7 @@ class GeKitchenUpdateCoordinator(DataUpdateCoordinator):
         self._appliance_apis = {}  # type: Dict[str, ApplianceApi]
 
         # Some record keeping to let us know when we can start generating entities
-        self._got_roster = True
+        self._got_roster = False
         self._init_done = False
         self.initialization_future = asyncio.Future()
 
@@ -125,8 +125,10 @@ class GeKitchenUpdateCoordinator(DataUpdateCoordinator):
     async def on_roster_update(self, _):
         """When there's a roster update, mark it and maybe trigger all ready."""
         _LOGGER.debug('Got roster update')
-        self._got_roster = True
-        await self.async_maybe_trigger_all_ready()
+        if not self._got_roster:
+            self._got_roster = True
+            await asyncio.sleep(5)  # After the initial roster update, wait a bit and hit go
+            await self.async_maybe_trigger_all_ready()
 
     async def on_device_initial_update(self, appliance: GeAppliance):
         """When an appliance first becomes ready, let the system know and schedule periodic updates."""
