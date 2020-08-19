@@ -21,7 +21,7 @@ from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from .update_coordinator import GeKitchenUpdateCoordinator
 
 CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
-PLATFORMS = ["sensor"]
+PLATFORMS = ["sensor", "binary_sensor", "switch"]
 
 _LOGGER = logging.getLogger(__name__)
 

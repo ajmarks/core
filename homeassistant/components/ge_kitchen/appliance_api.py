@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-from datetime import datetime
 from typing import Any, Dict, List, Optional, Type
 
 from gekitchen import ErdCodeType, GeAppliance, translate_erd_code
@@ -13,6 +12,8 @@ from gekitchen.erd_constants import (
     ErdMeasurementUnits,
     ErdOvenState,
 )
+from homeassistant.components.binary_sensor import BinarySensorEntity
+from homeassistant.components.switch import SwitchEntity
 from homeassistant.const import TEMP_CELSIUS, TEMP_FAHRENHEIT
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import Entity
@@ -241,7 +242,7 @@ class OvenApi(ApplianceApi):
         return base_entities + oven_entities
 
 
-class GeEntity(Entity):
+class GeEntity:
     """Base class for all GE Entities"""
     def __init__(self, api: ApplianceApi):
         self._api = api
@@ -312,7 +313,7 @@ class GeErdEntity(GeEntity):
         return get_erd_icon(self.erd_code)
 
 
-class GeSensor(GeErdEntity):
+class GeSensor(GeErdEntity, Entity):
     """GE Entity for sensors"""
     @property
     def state(self) -> Optional[str]:
@@ -337,7 +338,26 @@ class GeSensor(GeErdEntity):
         return None
 
 
-class GeBinarySensor(GeErdEntity):
+class GeBinarySensor(GeErdEntity, BinarySensorEntity):
     @property
     def is_on(self) -> bool:
+        """Return True if entity is on."""
         return bool(self.appliance.get_erd_value(self.erd_code))
+
+
+class GeErdSwitch(GeBinarySensor, SwitchEntity):
+    """Switches for boolean ERD codes."""
+    device_class = "switch"
+
+    @property
+    def is_on(self) -> bool:
+        """Return True if switch is on."""
+        return bool(self.appliance.get_erd_value(self.erd_code))
+
+    def turn_on(self, **kwargs):
+        """Turn the switch on."""
+        self.appliance.set_erd_value(self.erd_code, True)
+
+    def turn_off(self, **kwargs):
+        """Turn the switch off."""
+        self.appliance.set_erd_value(self.erd_code, False)
