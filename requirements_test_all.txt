@@ -305,7 +305,7 @@ gTTS-token==1.1.3
 garminconnect==0.1.13
 
 # homeassistant.components.ge_kitchen
-gekitchen==0.1.3
+gekitchen==0.2.2
 
 # homeassistant.components.geo_json_events
 # homeassistant.components.usgs_earthquakes_feed
