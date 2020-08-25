@@ -46,7 +46,7 @@ class GeKitchenUpdateCoordinator(DataUpdateCoordinator):
 
     def create_ge_client(self, event_loop: Optional[asyncio.AbstractEventLoop]) -> GeWebsocketClient:
         """
-        Create a new GeClient object with some helpfull callbacks.
+        Create a new GeClient object with some helpful callbacks.
 
         :param event_loop: Event loop
         :return: GeWebsocketClient
