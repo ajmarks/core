@@ -125,6 +125,14 @@ def get_erd_icon(erd_code: ErdCodeType) -> Optional[str]:
         ErdCode.WARMING_DRAWER_STATE,
     }:
         return 'mdi:stove'
+    if erd_code in {
+        ErdCode.TURBO_COOL_STATUS,
+        ErdCode.TURBO_FREEZE_STATUS,
+    }:
+        return 'mdi:snowflake'
+    if erd_code == ErdCode.SABBATH_MODE:
+        return 'mdi:judaism'
+
     return None
 
 
