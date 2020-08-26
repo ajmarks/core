@@ -46,7 +46,7 @@ class GeKitchenUpdateCoordinator(DataUpdateCoordinator):
 
     def create_ge_client(self, event_loop: Optional[asyncio.AbstractEventLoop]) -> GeWebsocketClient:
         """
-        Create a new GeClient object with some helpful callbacks.
+        Create a new GeClient object with some helpfull callbacks.
 
         :param event_loop: Event loop
         :return: GeWebsocketClient
@@ -147,7 +147,7 @@ class GeKitchenUpdateCoordinator(DataUpdateCoordinator):
             await appliance.async_request_update()
 
     async def on_disconnect(self, _):
-        _LOGGER.info("GE Kitchen Disconnected. Attempting to reconnect.")
+        _LOGGER.debug("Disconnected. Attempting to reconnect.")
         self.last_update_success = False
 
         flow_context = {
@@ -162,7 +162,6 @@ class GeKitchenUpdateCoordinator(DataUpdateCoordinator):
         ]
 
         if not matching_flows:
-            _LOGGER.critical(f"Creating reauth task")
             self.hass.async_create_task(
                 self.hass.config_entries.flow.async_init(
                     DOMAIN, context=flow_context, data=self._config_entry.data,
